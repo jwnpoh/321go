@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strconv"
+	"time"
 )
 
 const usage = `
@@ -12,41 +14,126 @@ Usage:
 321go hh mm ss
 `
 
+type countdown struct {
+	hrs  string
+	mins string
+	secs string
+    hh int
+    mm int
+    ss int
+}
+
+func (c *countdown) parseDuration() (time.Duration, error) {
+    if c.hrs == "" {
+        c.hrs = "0"
+    }
+
+    if c.mins == "" {
+        c.mins = "0"
+    }
+
+    d := c.hrs + "h" + c.mins + "m" + c.secs + "s"
+
+    duration, err := time.ParseDuration(d)
+    if err != nil {
+        return duration, fmt.Errorf("unable to parse duration, %v", err)
+    }
+
+    return duration, nil
+}
+
+func (c *countdown) makeInt() error {
+    if c.hrs != "" {
+        h, err := strconv.Atoi(c.hrs)
+        if err != nil {
+            return fmt.Errorf("unable to convert hrs to int")
+        }
+        c.hh = h
+    }
+
+    if c.mins != "" {
+        m, err := strconv.Atoi(c.mins)
+        if err != nil {
+            return fmt.Errorf("unable to convert mins to int")
+        }
+        c.mm = m
+    }
+
+    s, err := strconv.Atoi(c.secs)
+    if err != nil {
+        return fmt.Errorf("unable to convert secs to int")
+    }
+    c.ss = s
+
+    return nil
+}
+
 func main() {
-	input := getInput()
-	output := parseInput(input)
+	var c countdown
+	args := os.Args[1:]
 
-	var hh, mm, ss int
+    if err := parseInput(args, &c); err != nil {
+        fmt.Println(err)
+        return
+    }
 
-	switch len(output) {
-	case 1:
-		ss = output[0]
-	case 2:
-		mm, ss = output[0], output[1]
+    duration, err := c.parseDuration()
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+
+    tickerTime(duration)
+}
+
+func parseInput(args []string, c *countdown) error {
+	if len(args) < 1 || len(args) > 3 {
+		log.Fatal(usage)
+	}
+
+	switch len(args) {
 	case 3:
-		hh, mm, ss = output[0], output[1], output[2]
+		c.hrs = args[0]
+		c.mins = args[1]
+		c.secs = args[2]
+	case 2:
+		c.mins = args[0]
+		c.secs = args[1]
+	case 1:
+		c.secs = args[0]
 	}
 
-	fmt.Println(hh, mm, ss)
+    if err := c.makeInt(); err != nil{
+        return fmt.Errorf("unable to make ints out of input")
+    }
+
+    if c.mm > 59 || c.ss > 59 {
+        return fmt.Errorf("are you sure you have entered the correct time? The value for minutes and seconds should not be more than 59")
+    }
+    return nil
 }
 
-func getInput() []string {
-	if len(os.Args) < 2 || len(os.Args) > 4 {
-		fmt.Print(usage)
-		os.Exit(1)
-	}
-	return os.Args[1:]
-}
+func tickerTime(d time.Duration) {
+    start := time.Now()
+    end := start.Add(d)
 
-func parseInput(input []string) []int {
-	var o []int
-	for _, j := range input {
-		n, _ := strconv.Atoi(j)
-		o = append(o, n)
-	}
-	return o
-}
+    ticker := time.NewTicker(time.Second)
+    defer ticker.Stop()
+    done := make(chan bool)
 
-func getDuration() {
+    go func() {
+        time.Sleep(d)
+        done <- true
+    }()
 
+    for {
+        select {
+        case <- done:
+        endMsg()
+        return
+        case t := <- ticker.C:
+        remaining := end.Sub(t)
+        printClock(remaining)
+        }
+    }
 }
