@@ -122,7 +122,7 @@ func tickerTime(d time.Duration) {
     done := make(chan bool)
 
     go func() {
-        time.Sleep(d)
+        time.Sleep(d + time.Second)
         done <- true
     }()
 
@@ -133,6 +133,7 @@ func tickerTime(d time.Duration) {
         return
         case t := <- ticker.C:
         remaining := end.Sub(t)
+        remaining += time.Second * 2
         printClock(remaining)
         }
     }

@@ -48,7 +48,7 @@ func endMsg() {
 		case 0:
 			fmt.Print(aurora.Sprintf(aurora.White(end)))
 		}
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(250 * time.Millisecond)
 	}
 }
 
